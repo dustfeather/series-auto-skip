@@ -1,0 +1,49 @@
+name: Bump Version and Release Extension
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # also allow manual trigger
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: 🧾 Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # needed to push tags
+
+      - name: 🔢 Bump version (patch)
+        uses: phips28/gh-action-bump-version@v10
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag-prefix: "v"
+          commit-message: "ci: bump version to {{version}}"
+          default: patch
+          files: src/manifest.json
+
+      - name: 📦 Pack Extension for Chrome
+        run: |
+          mkdir -p dist
+          cd src
+          zip -r ../dist/extension-chrome.zip . -x '*.DS_Store'
+
+      - name: 📦 Pack Extension for Firefox
+        run: |
+          cp -r src src-firefox
+          cd src-firefox
+          zip -r ../dist/extension-firefox.zip . -x '*.DS_Store'
+
+      - name: 🚀 Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/extension-chrome.zip
+            dist/extension-firefox.zip
