@@ -20,7 +20,7 @@ jobs:
           fetch-depth: 0  # needed to push tags
 
       - name: 🔢 Bump version (patch)
-        uses: phips28/gh-action-bump-version@v9
+        uses: phips28/gh-action-bump-version@master
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
