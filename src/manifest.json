@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Auto Skip Intro for Netflix & Plex",
+  "name": "Auto Skip for Plex & Netflix",
   "version": "1.0",
-  "description": "Automatically skips intros and credits on Netflix and Plex.",
+  "description": "Automatically skips intros and credits using key simulation.",
   "permissions": [],
   "host_permissions": [
     "https://www.netflix.com/*",
@@ -10,14 +10,6 @@
     "http://127.0.0.1:32400/*",
     "http://localhost:32400/*"
   ],
-  "action": {
-    "default_icon": {
-      "16": "icon16.png",
-      "48": "icon48.png",
-      "128": "icon128.png"
-    },
-    "default_title": "Auto Skip"
-  },
   "content_scripts": [
     {
       "matches": [
@@ -26,9 +18,7 @@
         "http://127.0.0.1:32400/*",
         "http://localhost:32400/*"
       ],
-      "js": [
-        "content.js"
-      ],
+      "js": ["content.js"],
       "run_at": "document_idle"
     }
   ],

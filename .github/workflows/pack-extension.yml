@@ -1,0 +1,43 @@
+name: Pack Extension for Chrome & Firefox
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  pack:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🧾 Checkout repo
+        uses: actions/checkout@v3
+
+      - name: 🧰 Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: 📁 Create dist folder
+        run: mkdir -p dist
+
+      - name: 📦 Zip for Chrome
+        run: |
+          cd src
+          zip -r ../dist/extension-chrome.zip . -x '*.DS_Store'
+
+      - name: 📦 Zip for Firefox
+        run: |
+          cp -r src src-firefox
+          # Optional: Adjust manifest.json for Firefox here (e.g. remove host_permissions if needed)
+          # Example:
+          # sed -i 's/"host_permissions"/"permissions"/' src-firefox/manifest.json
+          
+          cd src-firefox
+          zip -r ../dist/extension-firefox.zip . -x '*.DS_Store'
+
+      - name: 📤 Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: packed-extensions
+          path: dist/*.zip
