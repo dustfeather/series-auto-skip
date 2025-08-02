@@ -1,23 +1,22 @@
-name: Bump Version and Release Extension
+name: Bump, Build, and Release Extension
 
 on:
+  workflow_dispatch:
   push:
     branches: [ main ]
-  workflow_dispatch:  # also allow manual trigger
 
 jobs:
-  bump-version:
+  bump-build-release:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: write
-      pull-requests: write
+      contents: write  # Required for commits, tags, and releases
 
     steps:
-      - name: 🧾 Checkout code
+      - name: 🧾 Checkout repository
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # needed to push tags
+          fetch-depth: 0  # Needed to create tags
 
       - name: 🔼 Bump patch version in manifest.json
         id: bump
@@ -36,28 +35,46 @@ jobs:
 
       - name: 🔖 Commit and tag new version
         run: |
-          git config user.name github-actions
-          git config user.email github-actions@github.com
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
           git commit -am "ci: bump version to ${{ steps.bump.outputs.new_tag }}"
           git tag ${{ steps.bump.outputs.new_tag }}
           git push origin HEAD
           git push origin ${{ steps.bump.outputs.new_tag }}
 
-      - name: 📦 Pack Extension for Chrome
+      - name: 📦 Pack Chrome extension
         run: |
           mkdir -p dist
           cd src
           zip -r ../dist/extension-chrome.zip . -x '*.DS_Store'
 
-      - name: 📦 Pack Extension for Firefox
+      - name: 📦 Pack Firefox extension
         run: |
           cp -r src src-firefox
           cd src-firefox
           zip -r ../dist/extension-firefox.zip . -x '*.DS_Store'
 
-      - name: 🚀 Create GitHub Release
+      - name: 🕐 Wait for GitHub to recognize the tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag=${{ steps.bump.outputs.new_tag }}
+          echo "Waiting for tag $tag to be available in GitHub API..."
+          
+          for i in {1..10}; do
+            if gh release view "$tag" > /dev/null 2>&1; then
+              echo "Tag $tag is ready."
+              break
+            fi
+            echo "Retrying in 3s... ($i/10)"
+            sleep 3
+          done
+
+      - name: 🚀 Create GitHub Release and upload zips
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.bump.outputs.new_tag }}
+          name: Release ${{ steps.bump.outputs.new_tag }}
           files: |
             dist/extension-chrome.zip
             dist/extension-firefox.zip
