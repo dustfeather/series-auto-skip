@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Auto Skip for Plex & Netflix",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Automatically skips intros and credits using key simulation.",
   "permissions": [],
   "host_permissions": [
@@ -18,7 +18,9 @@
         "http://127.0.0.1:32400/*",
         "http://localhost:32400/*"
       ],
-      "js": ["content.js"],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_idle"
     }
   ],
