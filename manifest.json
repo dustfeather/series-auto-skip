@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Auto Skip Intro for Netflix & Plex",
+  "version": "1.0",
+  "description": "Automatically skips intros and credits on Netflix and Plex.",
+  "permissions": [
+    "scripting",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://www.netflix.com/*",
+    "https://app.plex.tv/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.netflix.com/*",
+        "https://app.plex.tv/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}
