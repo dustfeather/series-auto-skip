@@ -48,11 +48,11 @@ jobs:
           cd src
           zip -r ../dist/extension-chrome.zip . -x '*.DS_Store'
 
-      - name: 📦 Pack Firefox extension
+      - name: 📦 Pack Firefox extension (.xpi)
         run: |
           cp -r src src-firefox
           cd src-firefox
-          zip -r ../dist/extension-firefox.zip . -x '*.DS_Store'
+          zip -r ../dist/extension-firefox.xpi . -x '*.DS_Store'
 
       - name: 🕐 Wait for GitHub to recognize the tag
         env:
@@ -77,4 +77,4 @@ jobs:
           name: Release ${{ steps.bump.outputs.new_tag }}
           files: |
             dist/extension-chrome.zip
-            dist/extension-firefox.zip
+            dist/extension-firefox.xpi
