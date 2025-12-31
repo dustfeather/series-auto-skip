@@ -1,7 +1,8 @@
 const skipSelectors = {
     netflix: {
+        recap: 'button[data-uia="player-skip-recap"]',
         intro: 'button[data-uia="player-skip-intro"]',
-        credits: 'button[data-uia="player-skip-recap"]'
+        nextEpisode: 'button[data-uia="next-episode-seamless-button"]'
     }
 };
 
@@ -14,13 +15,17 @@ function getPlatform() {
 function autoSkip(platform, enabledOptions) {
     const observer = new MutationObserver(() => {
         if (platform === "netflix") {
+            if (enabledOptions.skipRecap) {
+                const recapBtn = document.querySelector(skipSelectors.netflix.recap);
+                if (recapBtn) recapBtn.click();
+            }
             if (enabledOptions.skipIntro) {
                 const introBtn = document.querySelector(skipSelectors.netflix.intro);
                 if (introBtn) introBtn.click();
             }
             if (enabledOptions.skipCredits) {
-                const creditsBtn = document.querySelector(skipSelectors.netflix.credits);
-                if (creditsBtn) creditsBtn.click();
+                const nextEpisodeBtn = document.querySelector(skipSelectors.netflix.nextEpisode);
+                if (nextEpisodeBtn) nextEpisodeBtn.click();
             }
         } else if (platform === "plex") {
             if (enabledOptions.skipIntro) {
@@ -78,6 +83,7 @@ function findButtonByText(text) {
 const platform = getPlatform();
 if (platform) {
     waitForBodyAndInit(platform, {
+        skipRecap: true,
         skipIntro: true,
         skipCredits: true
     });
