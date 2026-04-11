@@ -2,7 +2,11 @@
   "name": "series-auto-skip",
   "version": "1.0.0",
   "private": true,
-  "scripts": {},
+  "scripts": {
+    "build": "node build.mjs",
+    "watch": "esbuild src/content.ts --bundle --outfile=dist/content.js --format=iife --target=es2020 --watch",
+    "typecheck": "tsc --noEmit"
+  },
   "devDependencies": {
     "esbuild": "^0.28.0",
     "typescript": "^6.0.2"
