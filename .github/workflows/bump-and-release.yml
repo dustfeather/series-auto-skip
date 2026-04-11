@@ -1,4 +1,4 @@
-name: Bump, Build, and Release Extension
+name: Build and Release Extension
 
 on:
   workflow_dispatch:
@@ -6,17 +6,31 @@ on:
     branches: [ main ]
 
 jobs:
-  bump-build-release:
+  build-release:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: write  # Required for commits, tags, and releases
+      contents: write  # Required for tags and releases
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
-          fetch-depth: 0  # Needed to create tags
+          fetch-depth: 0  # Needed to read tags
+
+      - name: Determine next version from tags
+        id: version
+        run: |
+          latest=$(git tag --list 'v*' --sort=-v:refname | head -n1)
+          if [ -z "$latest" ]; then
+            next="1.0.0"
+          else
+            IFS='.' read -r major minor patch <<< "${latest#v}"
+            next="$major.$minor.$((patch + 1))"
+          fi
+          echo "Next version: $next"
+          echo "version=$next" >> "$GITHUB_OUTPUT"
+          echo "tag=v$next" >> "$GITHUB_OUTPUT"
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -27,32 +41,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Bump patch version in manifest.json
-        id: bump
+      - name: Inject version into manifest
         run: |
-          file="src/manifest.json"
-          version=$(jq -r .version "$file")
-          echo "Current version: $version"
-
-          IFS='.' read -r major minor patch <<< "$version"
-          patch=$((patch + 1))
-          new_version="$major.$minor.$patch"
-          echo "New version: $new_version"
-
-          jq --arg v "$new_version" '.version = $v' "$file" > tmp && mv tmp "$file"
-          echo "new_tag=v$new_version" >> $GITHUB_OUTPUT
+          jq --arg v "${{ steps.version.outputs.version }}" \
+            '.version = $v' src/manifest.json > tmp && mv tmp src/manifest.json
 
       - name: Build extension
         run: npm run build
 
-      - name: Commit and tag new version
+      - name: Tag release
         run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git commit -am "ci: bump version to ${{ steps.bump.outputs.new_tag }}"
-          git tag ${{ steps.bump.outputs.new_tag }}
-          git push origin HEAD
-          git push origin ${{ steps.bump.outputs.new_tag }}
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "${{ steps.version.outputs.tag }}"
+          git push origin "${{ steps.version.outputs.tag }}"
 
       - name: Pack Chrome extension
         run: |
@@ -65,27 +67,11 @@ jobs:
           cd dist
           zip -r ../release/extension-firefox.xpi . -x '*.DS_Store'
 
-      - name: Wait for GitHub to recognize the tag
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          tag=${{ steps.bump.outputs.new_tag }}
-          echo "Waiting for tag $tag to be available in GitHub API..."
-
-          for i in {1..10}; do
-            if gh release view "$tag" > /dev/null 2>&1; then
-              echo "Tag $tag is ready."
-              break
-            fi
-            echo "Retrying in 3s... ($i/10)"
-            sleep 3
-          done
-
-      - name: Create GitHub Release and upload zips
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.bump.outputs.new_tag }}
-          name: Release ${{ steps.bump.outputs.new_tag }}
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Release ${{ steps.version.outputs.tag }}
           files: |
             release/extension-chrome.zip
             release/extension-firefox.xpi
