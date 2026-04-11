@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto Skip for Plex & Netflix</title>
+    <meta name="description" content="Browser extension for Chrome & Firefox that automatically skips intros and credits on Plex and Netflix.">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #0b0e17;
+            --surface: #141825;
+            --surface-2: #1c2133;
+            --border: #2a3045;
+            --text: #e2e8f0;
+            --text-muted: #8892a8;
+            --accent: #6366f1;
+            --accent-glow: rgba(99, 102, 241, 0.25);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        /* Hero */
+        .hero {
+            text-align: center;
+            padding: 5rem 1.5rem 3rem;
+            background: radial-gradient(ellipse at 50% 0%, var(--accent-glow) 0%, transparent 60%);
+        }
+
+        .hero-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 16px;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 0 40px var(--accent-glow);
+        }
+
+        .hero h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+            letter-spacing: -0.02em;
+        }
+
+        .hero p {
+            font-size: 1.15rem;
+            color: var(--text-muted);
+            max-width: 520px;
+            margin: 0 auto 2rem;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+
+        .btn:hover { text-decoration: none; transform: translateY(-1px); }
+        .btn-primary { background: var(--accent); color: #fff; box-shadow: 0 4px 20px var(--accent-glow); }
+        .btn-primary:hover { box-shadow: 0 6px 30px var(--accent-glow); }
+        .btn-secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+
+        .btn svg { width: 18px; height: 18px; fill: currentColor; }
+
+        /* Screenshot */
+        .screenshot-wrap {
+            text-align: center;
+            padding: 0 1.5rem 4rem;
+        }
+
+        .screenshot {
+            max-width: 700px;
+            width: 100%;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Sections */
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+        }
+
+        section { padding: 3rem 0; }
+
+        section h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            letter-spacing: -0.01em;
+        }
+
+        /* Features */
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.25rem;
+        }
+
+        .feature {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.5rem;
+        }
+
+        .feature-icon {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .feature h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.35rem;
+        }
+
+        .feature p {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        /* Steps */
+        .steps {
+            counter-reset: step;
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .steps li {
+            counter-increment: step;
+            display: flex;
+            align-items: baseline;
+            gap: 1rem;
+            font-size: 1rem;
+        }
+
+        .steps li::before {
+            content: counter(step);
+            flex-shrink: 0;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 50%;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        /* Platforms table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            color: var(--text-muted);
+            font-weight: 500;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        td:first-child { font-weight: 500; }
+
+        /* Install */
+        .install-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.25rem;
+        }
+
+        @media (max-width: 550px) { .install-grid { grid-template-columns: 1fr; } }
+
+        .install-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.5rem;
+        }
+
+        .install-card h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .install-card p, .install-card ol {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        .install-card ol {
+            padding-left: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .install-card code {
+            background: var(--bg);
+            padding: 0.15em 0.4em;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+
+        /* Build */
+        pre {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.25rem;
+            overflow-x: auto;
+            font-size: 0.875rem;
+            line-height: 1.7;
+        }
+
+        pre code { background: none; padding: 0; }
+        .dim { color: var(--text-muted); }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 3rem 1.5rem;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border);
+            margin-top: 2rem;
+        }
+
+        footer a { color: var(--text-muted); }
+        footer a:hover { color: var(--text); }
+    </style>
+</head>
+<body>
+
+<section class="hero">
+    <img src="icon.png" alt="Auto Skip" class="hero-icon">
+    <h1>Auto Skip for Plex & Netflix</h1>
+    <p>Automatically skips intros and credits so you never have to reach for the remote.</p>
+    <div class="hero-buttons">
+        <a href="https://github.com/dustfeather/series-auto-skip/releases/latest" class="btn btn-primary">
+            <svg viewBox="0 0 16 16"><path d="M2.75 14A1.75 1.75 0 0 1 1 12.25v-2.5a.75.75 0 0 1 1.5 0v2.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 13.25 14ZM7.25 7.689V2a.75.75 0 0 1 1.5 0v5.689l1.97-1.969a.749.749 0 1 1 1.06 1.06l-3.25 3.25a.749.749 0 0 1-1.06 0L4.22 6.78a.749.749 0 1 1 1.06-1.06l1.97 1.969Z"/></svg>
+            Download
+        </a>
+        <a href="https://github.com/dustfeather/series-auto-skip" class="btn btn-secondary">
+            <svg viewBox="0 0 16 16"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg>
+            Source
+        </a>
+    </div>
+</section>
+
+<div class="screenshot-wrap">
+    <img src="screenshots/series-auto-skip.png" alt="Auto Skip in action" class="screenshot">
+</div>
+
+<div class="container">
+
+    <section>
+        <h2>Features</h2>
+        <div class="features">
+            <div class="feature">
+                <div class="feature-icon">&#9193;</div>
+                <h3>Skip Intros</h3>
+                <p>Automatically clicks the "Skip Intro" button the moment it appears on screen.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">&#9197;</div>
+                <h3>Skip Credits</h3>
+                <p>Jumps past end credits so the next episode starts without delay.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">&#127916;</div>
+                <h3>Netflix</h3>
+                <p>Targets Netflix's built-in skip intro and skip recap buttons directly.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">&#9654;</div>
+                <h3>Plex</h3>
+                <p>Works with Plex Web App and local servers at localhost:32400.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">&#128736;</div>
+                <h3>Zero Config</h3>
+                <p>Install it and forget about it. No settings, no popups, no setup required.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">&#9889;</div>
+                <h3>Lightweight</h3>
+                <p>No network requests, no analytics, no storage. Runs entirely in your browser.</p>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <h2>How it works</h2>
+        <ol class="steps">
+            <li>Install the extension in Chrome or Firefox</li>
+            <li>Navigate to Netflix or Plex and start watching a show</li>
+            <li>When a skip button appears, the extension clicks it automatically</li>
+            <li>Sit back and enjoy uninterrupted binge-watching</li>
+        </ol>
+    </section>
+
+    <section>
+        <h2>Supported Platforms</h2>
+        <table>
+            <thead>
+                <tr><th>Platform</th><th>Skip Intro</th><th>Skip Credits</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Netflix</td><td>Yes</td><td>Yes</td></tr>
+                <tr><td>Plex (app.plex.tv)</td><td>Yes</td><td>Yes</td></tr>
+                <tr><td>Plex (localhost:32400)</td><td>Yes</td><td>Yes</td></tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section>
+        <h2>Install</h2>
+        <div class="install-grid">
+            <div class="install-card">
+                <h3>Chrome / Edge / Brave</h3>
+                <ol>
+                    <li>Download <code>.zip</code> from <a href="https://github.com/dustfeather/series-auto-skip/releases/latest">Releases</a></li>
+                    <li>Go to <code>chrome://extensions</code></li>
+                    <li>Enable Developer Mode</li>
+                    <li>Click "Load unpacked" and select the unzipped folder</li>
+                </ol>
+            </div>
+            <div class="install-card">
+                <h3>Firefox</h3>
+                <ol>
+                    <li>Download <code>.xpi</code> from <a href="https://github.com/dustfeather/series-auto-skip/releases/latest">Releases</a></li>
+                    <li>Go to <code>about:addons</code></li>
+                    <li>Click "Install Add-on From File"</li>
+                    <li>Select the <code>.xpi</code> file</li>
+                </ol>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <h2>Build from source</h2>
+        <pre><code><span class="dim">$</span> npm install
+<span class="dim">$</span> npm run build</code></pre>
+        <p style="margin-top: 0.75rem; color: var(--text-muted); font-size: 0.875rem;">
+            Then load <code style="background: var(--surface); padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.85em;">dist/</code> as an unpacked extension in Chrome or temporary add-on in Firefox.
+        </p>
+    </section>
+
+</div>
+
+<footer>
+    <a href="https://github.com/dustfeather/series-auto-skip">GitHub</a>
+    &nbsp;&middot;&nbsp;
+    <a href="https://github.com/dustfeather/series-auto-skip/releases/latest">Releases</a>
+    &nbsp;&middot;&nbsp;
+    <a href="privacy.html">Privacy Policy</a>
+    &nbsp;&middot;&nbsp;
+    <a href="https://github.com/dustfeather/series-auto-skip/blob/main/LICENSE">MIT License</a>
+    <br style="margin-top: 0.75rem;">
+    Maintained by <a href="https://github.com/dustfeather">dustfeather</a>
+</footer>
+
+</body>
+</html>
