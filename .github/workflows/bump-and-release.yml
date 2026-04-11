@@ -5,6 +5,10 @@ on:
   push:
     branches: [ main ]
 
+concurrency:
+  group: release
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
@@ -262,6 +266,10 @@ jobs:
 
             if [ "$HTTP_CODE" = "429" ]; then
               WAIT=$(echo "$BODY" | jq -r '.detail' | grep -oP '\d+' || echo "60")
+              if [ "$WAIT" -gt 600 ]; then
+                echo "::warning::AMO rate limit too long (${WAIT}s), skipping publish"
+                exit 0
+              fi
               echo "Rate limited, waiting ${WAIT}s..."
               sleep "$WAIT"
               continue
