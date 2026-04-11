@@ -38,3 +38,7 @@ Plex support includes local servers at `127.0.0.1:32400` and `localhost:32400`.
 The extension watches for skip buttons to appear on the page and clicks them automatically. On Netflix, it targets the built-in skip intro and skip recap buttons. On Plex, it finds buttons by their text label.
 
 No configuration needed. Install it and forget about it.
+
+## Privacy
+
+This extension does not collect, store, or transmit any user data. Read the full [Privacy Policy](privacy).
