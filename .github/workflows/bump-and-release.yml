@@ -5,48 +5,42 @@ on:
   push:
     branches: [ main ]
 
+permissions:
+  contents: write
+
 jobs:
-  build-release:
+  build-and-release:
     runs-on: ubuntu-latest
-
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
-    permissions:
-      contents: write
-
     outputs:
       version: ${{ steps.version.outputs.version }}
-      tag: ${{ steps.version.outputs.tag }}
-
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - name: Determine next version from tags
+      - name: Determine next version from git tags
         id: version
         run: |
-          latest=$(git tag --list 'v*' --sort=-v:refname | head -n1)
-          if [ -z "$latest" ]; then
-            next="1.0.0"
-          else
-            IFS='.' read -r major minor patch <<< "${latest#v}"
-            next="$major.$minor.$((patch + 1))"
+          LATEST=$(git tag --list 'v*' --sort=-version:refname | head -n1)
+          if [ -z "$LATEST" ]; then
+            LATEST="v0.0.0"
           fi
-          echo "Next version: $next"
-          echo "version=$next" >> "$GITHUB_OUTPUT"
-          echo "tag=v$next" >> "$GITHUB_OUTPUT"
+          CURRENT="${LATEST#v}"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+          PATCH=$((PATCH + 1))
+          NEW="${MAJOR}.${MINOR}.${PATCH}"
+          echo "version=${NEW}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${NEW}" >> "$GITHUB_OUTPUT"
+          echo "Next version: v${NEW} (from ${LATEST})"
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
+      - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: '24'
           cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - run: npm ci
 
       - name: Inject version into manifest
         run: |
@@ -56,57 +50,50 @@ jobs:
       - name: Build extension
         run: npm run build
 
-      - name: Tag release
+      - name: Create source zip for AMO review
+        run: git archive --format=zip --prefix=series-auto-skip-source/ HEAD -o dist/source.zip
+
+      - name: Pack Chrome extension
+        run: |
+          cd dist
+          zip -r extension-chrome.zip . -x '*.DS_Store' 'source.zip'
+
+      - name: Pack Firefox extension (.xpi)
+        run: |
+          cd dist
+          zip -r extension-firefox.xpi . -x '*.DS_Store' 'source.zip' 'extension-chrome.zip'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Create tag and release
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag "${{ steps.version.outputs.tag }}"
           git push origin "${{ steps.version.outputs.tag }}"
 
-      - name: Pack Chrome extension
-        run: |
-          mkdir -p release
-          cd dist
-          zip -r ../release/extension-chrome.zip . -x '*.DS_Store'
-
-      - name: Pack Firefox extension (.xpi)
-        run: |
-          cd dist
-          zip -r ../release/extension-firefox.xpi . -x '*.DS_Store'
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
-          name: Release ${{ steps.version.outputs.tag }}
           files: |
-            release/extension-chrome.zip
-            release/extension-firefox.xpi
-
-      - name: Upload Chrome zip artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: chrome-zip
-          path: release/extension-chrome.zip
-
-      - name: Upload dist artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: extension-dist
-          path: dist/
+            dist/extension-chrome.zip
+            dist/extension-firefox.xpi
+          generate_release_notes: true
 
   publish-chrome:
-    needs: build-release
+    needs: build-and-release
     runs-on: ubuntu-latest
-
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
     steps:
-      - name: Download Chrome zip
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
-          name: chrome-zip
+          name: dist
+          path: dist/
 
       - name: Publish to Chrome Web Store
         run: |
@@ -128,13 +115,17 @@ jobs:
             -H "Authorization: Bearer $ACCESS_TOKEN" \
             -H "x-goog-api-version: 2" \
             -X PUT \
-            -T extension-chrome.zip \
+            -T dist/extension-chrome.zip \
             "https://www.googleapis.com/upload/chromewebstore/v1.1/items/${{ secrets.CHROME_EXTENSION_ID }}")
 
           HTTP_CODE=$(echo "$UPLOAD_RESPONSE" | tail -1)
           BODY=$(echo "$UPLOAD_RESPONSE" | sed '$d')
           echo "Upload ($HTTP_CODE): $BODY"
-          if [ "$HTTP_CODE" != "200" ]; then exit 1; fi
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Upload failed"
+            exit 1
+          fi
 
           PUBLISH_RESPONSE=$(curl -s -w "\n%{http_code}" \
             -H "Authorization: Bearer $ACCESS_TOKEN" \
@@ -149,35 +140,117 @@ jobs:
 
           if [ "$HTTP_CODE" != "200" ]; then
             if echo "$BODY" | grep -q "in review"; then
-              echo "::warning::Publish skipped: item currently in review"
+              echo "::warning::Chrome Web Store publish skipped: item is still in review"
             else
+              echo "Publish failed"
               exit 1
             fi
           fi
 
   publish-amo:
-    needs: build-release
+    needs: build-and-release
     runs-on: ubuntu-latest
-
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
     steps:
-      - name: Download extension dist
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
-          name: extension-dist
-          path: dist
+          name: dist
+          path: dist/
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
+      - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: '24'
 
-      - name: Publish to AMO
+      - name: Publish to Mozilla Add-ons
+        env:
+          AMO_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
         run: |
-          npx web-ext sign \
-            --source-dir=dist \
-            --channel=listed \
-            --api-key="${{ secrets.AMO_JWT_ISSUER }}" \
-            --api-secret="${{ secrets.AMO_JWT_SECRET }}"
+          generate_jwt() {
+            node -e "
+              const crypto = require('crypto');
+              const h = Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('base64url');
+              const now = Math.floor(Date.now()/1000);
+              const p = Buffer.from(JSON.stringify({
+                iss: process.env.AMO_API_KEY,
+                iat: now,
+                exp: now + 300,
+                jti: crypto.randomUUID()
+              })).toString('base64url');
+              const s = crypto.createHmac('sha256', process.env.AMO_API_SECRET)
+                .update(h+'.'+p).digest('base64url');
+              console.log(h+'.'+p+'.'+s);
+            "
+          }
+
+          AMO_BASE="https://addons.mozilla.org/api/v5"
+          ADDON_ID="auto-skip@dustfeather"
+
+          # Upload .xpi
+          JWT=$(generate_jwt)
+          UPLOAD_RESPONSE=$(curl -s \
+            -H "Authorization: JWT $JWT" \
+            -F "upload=@dist/extension-firefox.xpi" \
+            -F "channel=listed" \
+            "$AMO_BASE/addons/upload/")
+
+          UPLOAD_UUID=$(echo "$UPLOAD_RESPONSE" | jq -r '.uuid')
+          echo "Upload UUID: $UPLOAD_UUID"
+
+          if [ "$UPLOAD_UUID" = "null" ] || [ -z "$UPLOAD_UUID" ]; then
+            echo "Upload failed: $UPLOAD_RESPONSE"
+            exit 1
+          fi
+
+          # Poll for validation (max 10 minutes)
+          PROCESSED="false"
+          for i in $(seq 1 60); do
+            sleep 10
+            JWT=$(generate_jwt)
+
+            STATUS=$(curl -s \
+              -H "Authorization: JWT $JWT" \
+              "$AMO_BASE/addons/upload/$UPLOAD_UUID/")
+
+            PROCESSED=$(echo "$STATUS" | jq -r '.processed')
+            VALID=$(echo "$STATUS" | jq -r '.valid')
+            echo "Poll $i: processed=$PROCESSED valid=$VALID"
+
+            if [ "$PROCESSED" = "true" ]; then
+              if [ "$VALID" = "true" ]; then
+                echo "Validation passed"
+                break
+              else
+                echo "Validation failed:"
+                echo "$STATUS" | jq '.validation.messages'
+                exit 1
+              fi
+            fi
+          done
+
+          if [ "$PROCESSED" != "true" ]; then
+            echo "Validation timed out"
+            exit 1
+          fi
+
+          # Create new version with source code for review
+          JWT=$(generate_jwt)
+          VERSION_RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -H "Authorization: JWT $JWT" \
+            -F "upload=$UPLOAD_UUID" \
+            -F "source=@dist/source.zip" \
+            "$AMO_BASE/addons/addon/$ADDON_ID/versions/")
+
+          HTTP_CODE=$(echo "$VERSION_RESPONSE" | tail -1)
+          BODY=$(echo "$VERSION_RESPONSE" | sed '$d')
+          echo "Version create ($HTTP_CODE): $BODY"
+
+          if [ "$HTTP_CODE" != "201" ] && [ "$HTTP_CODE" != "200" ]; then
+            if echo "$BODY" | grep -q "in review"; then
+              echo "::warning::AMO publish skipped: previous version still in review"
+            else
+              echo "Version creation failed"
+              exit 1
+            fi
+          fi
