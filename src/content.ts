@@ -19,7 +19,11 @@ const skipSelectors: Record<string, SkipSelectors> = {
 
 function getPlatform(): Platform | null {
   if (location.hostname === "www.netflix.com") return "netflix";
-  if (location.hostname === "app.plex.tv" || location.hostname === "127.0.0.1")
+  if (
+    location.hostname === "app.plex.tv" ||
+    ((location.hostname === "127.0.0.1" || location.hostname === "localhost") &&
+      location.port === "32400")
+  )
     return "plex";
   return null;
 }
