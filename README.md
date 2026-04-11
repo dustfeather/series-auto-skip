@@ -24,4 +24,4 @@ This compiles `src/content.ts` to `dist/content.js` using esbuild (IIFE format) 
 ### Load the extension
 
 - **Chrome / Edge / Brave:** Go to `chrome://extensions`, enable Developer Mode, click "Load unpacked", select the `dist/` folder.
-- **Firefox:** Go to `about:debugging#/runtime/this-firefox`, click "Load Temporary Add-on", select `dist/manifest.json`.
+- **Firefox:** Install from [Mozilla Add-ons](https://addons.mozilla.org/en-US/firefox/addon/auto-skip-for-plex-netflix/).
