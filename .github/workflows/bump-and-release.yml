@@ -13,27 +13,39 @@ jobs:
       contents: write  # Required for commits, tags, and releases
 
     steps:
-      - name: 🧾 Checkout repository
-        uses: actions/checkout@v6
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Needed to create tags
 
-      - name: 🔼 Bump patch version in manifest.json
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Bump patch version in manifest.json
         id: bump
         run: |
           file="src/manifest.json"
           version=$(jq -r .version "$file")
           echo "Current version: $version"
-          
+
           IFS='.' read -r major minor patch <<< "$version"
           patch=$((patch + 1))
           new_version="$major.$minor.$patch"
           echo "New version: $new_version"
-          
+
           jq --arg v "$new_version" '.version = $v' "$file" > tmp && mv tmp "$file"
           echo "new_tag=v$new_version" >> $GITHUB_OUTPUT
 
-      - name: 🔖 Commit and tag new version
+      - name: Build extension
+        run: npm run build
+
+      - name: Commit and tag new version
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
@@ -42,25 +54,24 @@ jobs:
           git push origin HEAD
           git push origin ${{ steps.bump.outputs.new_tag }}
 
-      - name: 📦 Pack Chrome extension
+      - name: Pack Chrome extension
         run: |
-          mkdir -p dist
-          cd src
-          zip -r ../dist/extension-chrome.zip . -x '*.DS_Store'
+          mkdir -p release
+          cd dist
+          zip -r ../release/extension-chrome.zip . -x '*.DS_Store'
 
-      - name: 📦 Pack Firefox extension (.xpi)
+      - name: Pack Firefox extension (.xpi)
         run: |
-          cp -r src src-firefox
-          cd src-firefox
-          zip -r ../dist/extension-firefox.xpi . -x '*.DS_Store'
+          cd dist
+          zip -r ../release/extension-firefox.xpi . -x '*.DS_Store'
 
-      - name: 🕐 Wait for GitHub to recognize the tag
+      - name: Wait for GitHub to recognize the tag
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tag=${{ steps.bump.outputs.new_tag }}
           echo "Waiting for tag $tag to be available in GitHub API..."
-          
+
           for i in {1..10}; do
             if gh release view "$tag" > /dev/null 2>&1; then
               echo "Tag $tag is ready."
@@ -70,11 +81,11 @@ jobs:
             sleep 3
           done
 
-      - name: 🚀 Create GitHub Release and upload zips
+      - name: Create GitHub Release and upload zips
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.bump.outputs.new_tag }}
           name: Release ${{ steps.bump.outputs.new_tag }}
           files: |
-            dist/extension-chrome.zip
-            dist/extension-firefox.xpi
+            release/extension-chrome.zip
+            release/extension-firefox.xpi
