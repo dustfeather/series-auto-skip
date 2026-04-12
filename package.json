@@ -4,11 +4,14 @@
   "private": true,
   "scripts": {
     "build": "node build.mjs",
+    "build:docs": "sass docs/scss/main.scss docs/css/main.css --style=compressed --no-source-map",
     "watch": "esbuild src/content.ts --bundle --outfile=dist/content.js --format=iife --target=es2020 --watch",
+    "watch:docs": "sass docs/scss/main.scss docs/css/main.css --watch",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "esbuild": "^0.28.0",
+    "sass": "^1.89.0",
     "typescript": "^6.0.2"
   }
 }

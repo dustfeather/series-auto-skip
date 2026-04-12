@@ -1,0 +1,148 @@
+// === MD3 Design Tokens ===
+
+// Color — Light scheme (seed: #6366F1)
+$color-light: (
+  'primary': #4F46E5,
+  'on-primary': #FFFFFF,
+  'primary-container': #E0E0FF,
+  'on-primary-container': #0C006B,
+  'secondary': #5C5D72,
+  'on-secondary': #FFFFFF,
+  'secondary-container': #E1E0F9,
+  'on-secondary-container': #191A2C,
+  'tertiary': #785370,
+  'on-tertiary': #FFFFFF,
+  'tertiary-container': #FFD8EE,
+  'on-tertiary-container': #2E1129,
+  'error': #BA1A1A,
+  'on-error': #FFFFFF,
+  'error-container': #FFDAD6,
+  'on-error-container': #410002,
+  'surface': #FBF8FF,
+  'on-surface': #1B1B21,
+  'on-surface-variant': #46464F,
+  'surface-container-lowest': #FFFFFF,
+  'surface-container-low': #F5F2FA,
+  'surface-container': #EFECF4,
+  'surface-container-high': #E9E7EF,
+  'surface-container-highest': #E4E1E9,
+  'surface-dim': #DCD9E1,
+  'surface-bright': #FBF8FF,
+  'inverse-surface': #303036,
+  'inverse-on-surface': #F3F0F7,
+  'inverse-primary': #BFC1FF,
+  'outline': #777680,
+  'outline-variant': #C7C5D0,
+);
+
+// Color — Dark scheme
+$color-dark: (
+  'primary': #BFC1FF,
+  'on-primary': #2424A2,
+  'primary-container': #3C3CB9,
+  'on-primary-container': #E0E0FF,
+  'secondary': #C5C4DD,
+  'on-secondary': #2E2F42,
+  'secondary-container': #444559,
+  'on-secondary-container': #E1E0F9,
+  'tertiary': #E7B9D4,
+  'on-tertiary': #45263E,
+  'tertiary-container': #5E3C56,
+  'on-tertiary-container': #FFD8EE,
+  'error': #FFB4AB,
+  'on-error': #690005,
+  'error-container': #93000A,
+  'on-error-container': #FFDAD6,
+  'surface': #131318,
+  'on-surface': #E4E1E9,
+  'on-surface-variant': #C7C5D0,
+  'surface-container-lowest': #0E0E13,
+  'surface-container-low': #1B1B21,
+  'surface-container': #201F25,
+  'surface-container-high': #2A2A30,
+  'surface-container-highest': #35343B,
+  'surface-dim': #131318,
+  'surface-bright': #39393F,
+  'inverse-surface': #E4E1E9,
+  'inverse-on-surface': #303036,
+  'inverse-primary': #4F46E5,
+  'outline': #918F9A,
+  'outline-variant': #46464F,
+);
+
+// Typography scales
+$typescale: (
+  'display-medium': (weight: 400, size: 2.8125rem, line-height: 3.25rem, tracking: 0rem),
+  'headline-large': (weight: 400, size: 2rem, line-height: 2.5rem, tracking: 0rem),
+  'headline-small': (weight: 400, size: 1.5rem, line-height: 2rem, tracking: 0rem),
+  'title-medium': (weight: 500, size: 1rem, line-height: 1.5rem, tracking: 0.009375rem),
+  'body-large': (weight: 400, size: 1rem, line-height: 1.5rem, tracking: 0.03125rem),
+  'body-medium': (weight: 400, size: 0.875rem, line-height: 1.25rem, tracking: 0.015625rem),
+  'label-large': (weight: 500, size: 0.875rem, line-height: 1.25rem, tracking: 0.00625rem),
+  'label-medium': (weight: 500, size: 0.75rem, line-height: 1rem, tracking: 0.03125rem),
+);
+
+// Shape
+$shape: (
+  'none': 0,
+  'extra-small': 4px,
+  'small': 8px,
+  'medium': 12px,
+  'large': 16px,
+  'extra-large': 28px,
+  'full': 9999px,
+);
+
+// Motion
+$motion-easing: (
+  'emphasized': cubic-bezier(0.2, 0, 0, 1),
+  'emphasized-decelerate': cubic-bezier(0.05, 0.7, 0.1, 1),
+  'emphasized-accelerate': cubic-bezier(0.3, 0, 0.8, 0.15),
+  'standard': cubic-bezier(0.2, 0, 0, 1),
+);
+
+$motion-duration: (
+  'short4': 200ms,
+  'medium2': 300ms,
+);
+
+// === Typescale mixin ===
+@mixin typescale($scale) {
+  font-weight: var(--md-sys-typescale-#{$scale}-weight);
+  font-size: var(--md-sys-typescale-#{$scale}-size);
+  line-height: var(--md-sys-typescale-#{$scale}-line-height);
+  letter-spacing: var(--md-sys-typescale-#{$scale}-tracking);
+}
+
+// === Generate CSS custom properties ===
+:root {
+  @each $name, $value in $color-light {
+    --md-sys-color-#{$name}: #{$value};
+  }
+
+  @each $scale, $props in $typescale {
+    @each $prop, $value in $props {
+      --md-sys-typescale-#{$scale}-#{$prop}: #{$value};
+    }
+  }
+
+  @each $name, $value in $shape {
+    --md-sys-shape-corner-#{$name}: #{$value};
+  }
+
+  @each $name, $value in $motion-easing {
+    --md-sys-motion-easing-#{$name}: #{$value};
+  }
+
+  @each $name, $value in $motion-duration {
+    --md-sys-motion-duration-#{$name}: #{$value};
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    @each $name, $value in $color-dark {
+      --md-sys-color-#{$name}: #{$value};
+    }
+  }
+}
