@@ -261,14 +261,14 @@ jobs:
             exit 1
           fi
 
-          # Create new version with source code and release notes
-          NOTES=$(cat release-notes.txt)
-          RELEASE_NOTES=$(jq -n --arg notes "$NOTES" '{"en-US": $notes}')
-
+          # Create new version with source code (multipart).
+          # AMO API: complex/translated fields (release_notes, compatibility,
+          # custom_license) cannot be set in the same multipart request as a
+          # source upload — they require a separate JSON PATCH call.
+          # See: https://mozilla.github.io/addons-server/topics/api/addons.html#version-sources
           VERSION_RESPONSE=$(amo_curl \
             -F "upload=$UPLOAD_UUID" \
             -F "source=@source-${{ needs.build.outputs.tag }}.zip" \
-            -F "release_notes=$RELEASE_NOTES" \
             "$AMO_BASE/addons/addon/$ADDON_ID/versions/")
 
           HTTP_CODE=$(echo "$VERSION_RESPONSE" | tail -1)
@@ -278,8 +278,35 @@ jobs:
           if [ "$HTTP_CODE" != "201" ] && [ "$HTTP_CODE" != "200" ]; then
             if echo "$BODY" | grep -q "in review"; then
               echo "::warning::AMO publish skipped: previous version still in review"
-            else
-              echo "Version creation failed"
-              exit 1
+              exit 0
             fi
+            echo "Version creation failed"
+            exit 1
+          fi
+
+          VERSION_ID=$(echo "$BODY" | jq -r '.id')
+          if [ "$VERSION_ID" = "null" ] || [ -z "$VERSION_ID" ]; then
+            echo "Could not parse version id from create response; skipping release_notes PATCH"
+            exit 0
+          fi
+
+          # PATCH release_notes as JSON (translatable field requires {lang: value})
+          NOTES=$(cat release-notes.txt)
+          PATCH_BODY=$(jq -n --arg notes "$NOTES" '{release_notes: {"en-US": $notes}}')
+
+          # generate_jwt is available from earlier in the script
+          JWT=$(generate_jwt)
+          PATCH_RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -H "Authorization: JWT $JWT" \
+            -H "Content-Type: application/json" \
+            -X PATCH \
+            -d "$PATCH_BODY" \
+            "$AMO_BASE/addons/addon/$ADDON_ID/versions/$VERSION_ID/")
+
+          PATCH_CODE=$(echo "$PATCH_RESPONSE" | tail -1)
+          PATCH_BODY_RESP=$(echo "$PATCH_RESPONSE" | sed '$d')
+          echo "Release-notes PATCH ($PATCH_CODE): $PATCH_BODY_RESP"
+
+          if [ "$PATCH_CODE" != "200" ]; then
+            echo "::warning::Failed to set release notes (version was still created)"
           fi
