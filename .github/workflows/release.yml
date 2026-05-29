@@ -18,7 +18,9 @@ jobs:
   tests:
     permissions:
       contents: read
-    uses: dustfeather/shared-workflows/.github/workflows/node-test.yml@v1
+    uses: dustfeather/shared-workflows/.github/workflows/node-test.yml@v2
+    with:
+      runner: arc-df-series-auto-skip
 
   build:
     needs: tests
@@ -105,15 +107,17 @@ jobs:
 
   publish-chrome:
     needs: build
-    uses: dustfeather/shared-workflows/.github/workflows/publish-chrome.yml@v1
+    uses: dustfeather/shared-workflows/.github/workflows/publish-chrome.yml@v2
     with:
+      runner: arc-df-series-auto-skip
       zip-name: auto-skip-chrome-${{ needs.build.outputs.tag }}.zip
     secrets: inherit
 
   publish-firefox:
     needs: build
-    uses: dustfeather/shared-workflows/.github/workflows/publish-firefox.yml@v1
+    uses: dustfeather/shared-workflows/.github/workflows/publish-firefox.yml@v2
     with:
+      runner: arc-df-series-auto-skip
       xpi-name: auto-skip-firefox-${{ needs.build.outputs.tag }}.xpi
       source-name: source-${{ needs.build.outputs.tag }}.zip
       addon-id: auto-skip@dustfeather
