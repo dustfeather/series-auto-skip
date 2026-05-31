@@ -132,3 +132,5 @@ dist
 .yarn/install-state.gz
 .pnp.*
 
+# Added by code-review-graph
+.code-review-graph/
