@@ -134,3 +134,6 @@ dist
 
 # Added by code-review-graph
 .code-review-graph/
+
+# Release artifacts produced by scripts/pack.mjs
+dist-artifacts/

@@ -1,123 +1,22 @@
 name: Release
 
 on:
-  push:
-    branches: [main]
+    push:
+        branches: [main]
 
 permissions:
-  contents: write
+    contents: write
 
 concurrency:
-  group: release
-  cancel-in-progress: true
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    group: release
+    cancel-in-progress: true
 
 jobs:
-  tests:
-    permissions:
-      contents: read
-    uses: dustfeather/shared-workflows/.github/workflows/node-test.yml@v4
-    with:
-      runner: arc-df-series-auto-skip
-
-  build:
-    needs: tests
-    runs-on: arc-df-series-auto-skip
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-      tag: ${{ steps.version.outputs.tag }}
-    steps:
-      - uses: actions/checkout@v6
+    release:
+        uses: dustfeather/shared-workflows/.github/workflows/release-extension.yml@v4
         with:
-          fetch-depth: 0
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "26"
-
-      - run: npm ci
-
-      - name: Determine next version from tags
-        id: version
-        run: |
-          latest=$(git tag --list 'v*' --sort=-v:refname | head -n1)
-          if [ -z "$latest" ]; then
-            next="1.0.0"
-          else
-            IFS='.' read -r major minor patch <<< "${latest#v}"
-            next="$major.$minor.$((patch + 1))"
-          fi
-          echo "version=$next" >> "$GITHUB_OUTPUT"
-          echo "tag=v$next" >> "$GITHUB_OUTPUT"
-          echo "Next version: $next (previous: ${latest:-none})"
-
-      - name: Inject version into manifest
-        run: |
-          jq --arg v "${{ steps.version.outputs.version }}" \
-            '.version = $v' src/manifest.json > tmp && mv tmp src/manifest.json
-
-      - run: npm run build
-
-      - name: Tag release
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag "${{ steps.version.outputs.tag }}"
-          git push origin "${{ steps.version.outputs.tag }}"
-
-      - name: Package Chrome extension
-        run: cd dist && zip -r ../auto-skip-chrome-${{ steps.version.outputs.tag }}.zip .
-
-      - name: Package Firefox extension
-        run: cd dist && zip -r ../auto-skip-firefox-${{ steps.version.outputs.tag }}.xpi .
-
-      - name: Generate release notes
-        run: |
-          PREV_TAG=$(git tag --list 'v*' --sort=-v:refname | head -n1)
-          if [ -n "$PREV_TAG" ]; then
-            git log "${PREV_TAG}..HEAD" --pretty=format:"- %s" > release-notes.txt
-          else
-            echo "- Initial release" > release-notes.txt
-          fi
-
-      - name: Package source code for AMO review
-        run: git archive --format=zip --prefix=source/ -o source-${{ steps.version.outputs.tag }}.zip HEAD
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: ${{ steps.version.outputs.tag }}
-          generate_release_notes: true
-          files: |
-            auto-skip-chrome-${{ steps.version.outputs.tag }}.zip
-            auto-skip-firefox-${{ steps.version.outputs.tag }}.xpi
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v7
-        with:
-          name: extensions
-          path: |
-            auto-skip-chrome-${{ steps.version.outputs.tag }}.zip
-            auto-skip-firefox-${{ steps.version.outputs.tag }}.xpi
-            source-${{ steps.version.outputs.tag }}.zip
-            release-notes.txt
-
-  publish-chrome:
-    needs: build
-    uses: dustfeather/shared-workflows/.github/workflows/publish-chrome.yml@v4
-    with:
-      runner: arc-df-series-auto-skip
-      zip-name: auto-skip-chrome-${{ needs.build.outputs.tag }}.zip
-    secrets: inherit
-
-  publish-firefox:
-    needs: build
-    uses: dustfeather/shared-workflows/.github/workflows/publish-firefox.yml@v4
-    with:
-      runner: arc-df-series-auto-skip
-      xpi-name: auto-skip-firefox-${{ needs.build.outputs.tag }}.xpi
-      source-name: source-${{ needs.build.outputs.tag }}.zip
-      addon-id: auto-skip@dustfeather
-    secrets: inherit
+            runner: arc-df-series-auto-skip
+            targets: '["chrome","firefox"]'
+            base-name: auto-skip
+            addon-id: auto-skip@dustfeather
+        secrets: inherit
