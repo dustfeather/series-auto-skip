@@ -1,5 +1,7 @@
 # Auto Skip for Plex & Netflix
 
+[![Release](https://github.com/dustfeather/series-auto-skip/actions/workflows/release.yml/badge.svg)](https://github.com/dustfeather/series-auto-skip/actions/workflows/release.yml)
+
 Browser extension that automatically clicks "Skip Intro", "Skip Credits", and "Skip Recap" buttons on Plex and Netflix.
 
 ## Build from source
