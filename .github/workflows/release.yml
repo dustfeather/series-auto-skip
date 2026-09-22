@@ -13,9 +13,8 @@ concurrency:
 
 jobs:
     release:
-        uses: dustfeather/shared-workflows/.github/workflows/release-extension.yml@v7
+        uses: dustfeather/shared-workflows/.github/workflows/release-extension.yml@v8
         with:
-            runner: arc-df-series-auto-skip
             targets: '["chrome","firefox"]'
             base-name: auto-skip
             addon-id: auto-skip@dustfeather
